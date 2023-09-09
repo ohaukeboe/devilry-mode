@@ -34,7 +34,7 @@
   (when (y-or-n-p (concat "Close all buffers without saving?"))
     (dolist (buffer (buffer-list))
       (let ((process (get-buffer-process buffer)))
-        (when process (process-kill-without-query process))
+        (when process (set-process-query-on-exit-flag process nil))
         (set-buffer buffer)
         (set-buffer-modified-p nil)
         (kill-this-buffer)))
@@ -55,9 +55,9 @@
   (insert-file-contents file-path)
   (move-end-of-line nil)
   (insert " - " username)
-  (end-of-buffer)
+  (goto-char (point-max))
   (insert (concat "\nCorrected: " (current-time-string)))
-  (beginning-of-buffer))
+  (goto-char (point-min)))
 
 
 ;; Create a new feedback file in the right folder
@@ -184,8 +184,8 @@
               "easy-file-system "        (symbol-name dm-easy-file-system) "\n"
               "rm-class-files "          (symbol-name dm-rm-class-files)   "\n"
               "java-compilation "        (symbol-name dm-java-compilation) "\n"
-              "auto-indentation "        (symbol-name dm-auto-indentation)
-              )))
+              "auto-indentation "        (symbol-name dm-auto-indentation))))
+
 
     ;; Write to file
     (write-region str nil file-path)
@@ -213,8 +213,8 @@
      dm-easy-file-system          nil
      dm-java-compilation          t
      dm-rm-class-files            nil
-     dm-auto-indentation          nil
-     )
+     dm-auto-indentation          nil)
+
 
     ;; Read settings file and set variables
     (with-temp-buffer
@@ -230,8 +230,8 @@
 
           ;; Split line on space, set keyword to  first,
           (let ((keyword (car (split-string line " ")))
-                (value (reduce (lambda (x y) (concat x " " y))
-                               (cdr (split-string line " ")))))
+                (value (cl-reduce (lambda (x y) (concat x " " y))
+                              (cdr (split-string line " ")))))
             (if (not (member keyword keywords))
                 (message "ERROR: The keyword %s in the settings file is not a valid keyword." keyword)
               (if (null value)
@@ -319,12 +319,12 @@
         (reverse-string
          (nth 1
               (split-string (reverse-string (buffer-file-name)) system-file-separator)))
-      (car
-       (split-string
-        (reverse-string
-         (nth 3
-              (split-string
-               (reverse-string (buffer-file-name))  system-file-separator))) " ")))))
+        (car
+         (split-string
+          (reverse-string
+           (nth 2
+                (split-string
+                 (reverse-string (buffer-file-name))  system-file-separator))) " ")))))
 
 ;; The mode
 (define-minor-mode devilry-mode
