@@ -1,4 +1,4 @@
-(setq dm-source-dir (file-name-directory load-file-name))
+(defvar dm-source-dir (file-name-directory load-file-name))
 
 ;; To tidy up a buffer, created by simenheg
 (defun tidy ()
@@ -22,11 +22,6 @@
   (interactive)
   (let ((src (current-kill 0)))
     (insert (concat "```java\n" src "\n```\n"))))
-
-;; Activating markdown-mode if installed
-(defun safe-markdown-mode()
-  (when (require 'markdown-mode nil 'noerror)
-    (markdown-mode)))
 
 ;; Kill everything without saving
 (defun desktop-hard-clear ()
@@ -63,65 +58,57 @@
 ;; Create a new feedback file in the right folder
 ;; Splits windows and shows the previous feedback file
 ;; Opens all previous feedback files, but don't show them
-(defun dm-create-new-and-show-old-feedback()
-
-  ;; Getting username from the the file path of the current buffer
+(defun dm-create-new-and-show-old-feedback ()
+  "Getting username from the the file path of the current buffer."
   ;; Ask until we get a valid username
-  (setq username (dm-get-username))
-  (while (not (yes-or-no-p (concat "Correcting \"" username "\" Is this a valid username?")))
-    (when dm-easy-file-system
-      (message "The variable \"easy-file-system\" is currently \"t\""
-               "but the files are not organized this way.\n"
-               "Consider setting the variable \""
-               "easy-file-system to \"nil\" in devilry-mode.settings"))
-    (setq username (read-string "Type the correct username: ")))
+  (let ((username (dm-get-username)))
+    (while (not (yes-or-no-p (concat "Correcting \"" username "\" Is this a valid username?")))
+      (when dm-easy-file-system
+        (message (concat "The variable \"easy-file-system\" is currently \"t\""
+                         "but the files are not organized this way.\n"
+                         "Consider setting the variable \""
+                         "easy-file-system to \"nil\" in devilry-mode.settings")))
+      (setq username (read-string "Type the correct username: ")))
 
-  (while (not (file-exists-p (concat dm-feedback-dir-path username)))
-    (if (yes-or-no-p (concat "Can't find directory \"" dm-feedback-dir-path username "\". Create it?"))
-        (make-directory (concat dm-feedback-dir-path username) t)
-      (setq username (read-string
-                      (concat "Please give a valid username. (Must be a folder in path \""
-                              dm-feedback-dir-path "\"): ")))))
+    (while (not (file-exists-p (concat dm-feedback-dir-path username)))
+      (if (yes-or-no-p (concat "Can't find directory \"" dm-feedback-dir-path username "\". Create it?"))
+          (make-directory (concat dm-feedback-dir-path username) t)
+        (setq username (read-string
+                        (concat "Please give a valid username. (Must be a folder in path \""
+                                dm-feedback-dir-path "\"): ")))))
 
   ;; Calculate path to new and previous feedback file
-  (let* ((user-feedback-dir (concat dm-feedback-dir-path username "/"))
-         (newFilePath (concat user-feedback-dir dm-assignment-number ".txt"))
-         (prevFilePath (concat user-feedback-dir "/"
-                               (number-to-string (- (string-to-number dm-assignment-number) 1)) ".txt")))
+    (let* ((user-feedback-dir (concat dm-feedback-dir-path username "/"))
+           (newFilePath (concat user-feedback-dir dm-assignment-number ".md"))
+           (prevFilePath (concat user-feedback-dir "/"
+                                 (number-to-string (- (string-to-number dm-assignment-number) 1)) ".md")))
 
-    ;; Split screen to open feedback files on the right
-    (with-selected-window (split-window-right)
+      ;; Split screen to open feedback files on the right
+      (with-selected-window (split-window-right)
 
-      ;; Open all feedback files in the background
-      (dolist (file (directory-files user-feedback-dir t))
-        (unless (file-directory-p file)
-          (find-file-read-only file)
-          (visual-line-mode)
-          (safe-markdown-mode)))
+        ;; Open all feedback files in the background
+        (dolist (file (directory-files user-feedback-dir t))
+          (unless (file-directory-p file)
+            (find-file-read-only file)
+            (visual-line-mode)))
 
-      ;; Create new feedback-file or open it if it exists
-      (find-file newFilePath)
-      (setq buffer-read-only nil)
+        ;; Create new feedback-file or open it if it exists
+        (find-file newFilePath)
+        (setq buffer-read-only nil)
 
-      ;; Check if we have been editing this feedback file before
-      (when (eq (buffer-size) 0)
-        (dm-insert-template username dm-feedback-template-path))
+        ;; Check if we have been editing this feedback file before
+        (when (eq (buffer-size) 0)
+          (dm-insert-template username dm-feedback-template-path))
 
-      ;; Activate markdown-mode if installed
-      (safe-markdown-mode)
+        ;; Split window again if old feedback-file exists
+        (when (file-exists-p prevFilePath)
+          (with-selected-window (split-window-below)
+            (find-file prevFilePath)
+            (visual-line-mode)
+            (goto-char (point-max))))
 
-      ;; Split window again if old feedback-file exists
-      (when (file-exists-p prevFilePath)
-        (with-selected-window (split-window-below)
-          (find-file prevFilePath)
-          (visual-line-mode)
-          (end-of-buffer)
-
-          ;; Activating markdown-mode
-          (safe-markdown-mode)))
-
-      ;; Activate visual-line-mode to make sure text wrap is good
-      (visual-line-mode))))
+        ;; Activate visual-line-mode to make sure text wrap is good
+        (visual-line-mode)))))
 
 
 ;; Try to compile .java files, shows eventual errors in new split window below.
@@ -151,7 +138,7 @@
                   (shell-command "del *.class")
                 (shell-command "rm *.class")))
             (message "Compilation completed sucessfully.")))
-        (return)))))
+        (cl-return)))))
 
 
 ;; Compile all java files
@@ -160,16 +147,12 @@
 (defun dm-do-oblig ()
   (interactive)
   (delete-other-windows)
-
   ;; Indent code automatically. Is set at the top of this file.
   (when dm-auto-indentation (tidy-all-buffers))
-
   ;; Create new and show previous feedback files on the right
   (dm-create-new-and-show-old-feedback)
-
   ;; Show readme if it exists
   (dm-show-readme)
-
   ;; Compile .java files
   (when dm-java-compilation
     (dm-compile-all-open-java-files)))
@@ -185,16 +168,12 @@
               "rm-class-files "          (symbol-name dm-rm-class-files)   "\n"
               "java-compilation "        (symbol-name dm-java-compilation) "\n"
               "auto-indentation "        (symbol-name dm-auto-indentation))))
-
-
     ;; Write to file
     (write-region str nil file-path)
     (message "Updated settings file (devilry-mode.settings)")))
 
-
 ;; Get data from settings file
 (defun dm-read-settings-file (file-path)
-
   ;; List of accepted keywords
   (let ((keywords (list "feedback-dir-path"
                         "feedback-template-path"
@@ -203,31 +182,25 @@
                         "rm-class-files"
                         "auto-indentation"
                         "assignment-number")))
-
     ;; Create variables of the keywords with prefix dm-
     (dolist (keyword keywords)
       (set (intern (concat "dm-" keyword)) nil))
-
     ;; Set some default values
     (setq
      dm-easy-file-system          nil
      dm-java-compilation          t
      dm-rm-class-files            nil
      dm-auto-indentation          nil)
-
-
     ;; Read settings file and set variables
     (with-temp-buffer
       (when (file-exists-p file-path)
         (insert-file-contents file-path)
-
         ;; For each line on the file
         (dolist (line (split-string
                        (buffer-substring-no-properties
                         (point-min)
                         (point-max))
                        "\n" t))
-
           ;; Split line on space, set keyword to  first,
           (let ((keyword (car (split-string line " ")))
                 (value (cl-reduce (lambda (x y) (concat x " " y))
@@ -236,7 +209,6 @@
                 (message "ERROR: The keyword %s in the settings file is not a valid keyword." keyword)
               (if (null value)
                   (message "ERROR: The keyword %s in the settings file has no value." keyword)
-
                 ;; Set the correct variable to t, nil or a string
                 (message "Sat %s to %s" (intern (concat "dm-" keyword)) value)
                 (set (intern (concat "dm-" keyword))
@@ -244,15 +216,12 @@
                            ((string-equal value "nil") nil)
                            (t value)))))))))))
 
-
 ;; Initiates the system
 (defun dm-init ()
   (let ((settings-file (concat dm-source-dir "devilry-mode.settings")))
     (dm-read-settings-file settings-file)
-
     ;; Check if we need to write to file
     (let ((data-updated nil))
-
       ;; Check if not file exists
       (if (not (file-exists-p settings-file))
           (progn
